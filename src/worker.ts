@@ -72,7 +72,7 @@ const BASE_SECURITY_HEADERS = {
 //   - default-src 'none' — deny-by-default; every directive below must
 //     explicitly opt resources back in. Anything we forget to declare is
 //     blocked, not silently allowed.
-//   - script-src 'self' + Turnstile — no inline scripts (pre-paint bootstrap
+//   - script-src 'self' — no inline scripts (pre-paint bootstrap
 //     is an external file at public/js/prefs-bootstrap.js).
 //   - worker-src 'self' — Argon2id runs in a Web Worker (public/js/kdf-worker.js)
 //     so the ~1s master-key derivation doesn't freeze the UI. Under
@@ -86,13 +86,13 @@ const BASE_SECURITY_HEADERS = {
 //     locked down per the OWASP cheat sheet.
 const HTML_CSP =
     "default-src 'none'; " +
-    "script-src 'self' https://challenges.cloudflare.com; " +
+    "script-src 'self'; " +
     "worker-src 'self'; " +
     "style-src 'self'; " +
     "img-src 'self' data:; " +
     "font-src 'self'; " +
     "connect-src 'self' https://api.passflares.com; " +
-    "frame-src https://challenges.cloudflare.com; " +
+    "frame-src 'none'; " +
     "manifest-src 'self'; " +
     "base-uri 'self'; " +
     "object-src 'none'; " +
