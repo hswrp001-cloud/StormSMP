@@ -2,7 +2,6 @@ import { sign } from 'jsonwebtoken';
 import { VaultMetadata } from './types.js';
 import {
     deriveScryptHash,
-    verifyTurnstile,
     timingSafeEqualHex,
     normalizeEmail,
     isValidEmail,
@@ -144,14 +143,13 @@ export async function handleRegister(request: CustomRequest, env: Env, ctx: Exec
         kdfParams?: unknown;
         publicKey?: string;
         privateKeyEnc?: string;
-        turnstileToken?: string;
     }>(request);
     if (!body) {
         return jsonResponse({ message: "Invalid JSON body." }, 400);
     }
 
     const email = normalizeEmail(body.email);
-    const { authSecret, kdfSalt, publicKey, privateKeyEnc, turnstileToken } = body;
+    const { authSecret, kdfSalt, publicKey, privateKeyEnc } = body;
 
     // Rate limit by IP — same lockout policy as /login to prevent registration spam
     const subjects = [ipSubject('register', ipAddress)];
@@ -170,14 +168,6 @@ export async function handleRegister(request: CustomRequest, env: Env, ctx: Exec
     if (!isValidEmail(email)) {
         logAudit(env, ctx, null, 'REGISTER_FAILURE', { reason: 'Invalid email' }, ipAddress, userAgent);
         return jsonResponse({ message: "Please provide a valid email address." }, 400);
-    }
-
-    // Turnstile is required — fail closed so a missing or invalid token blocks registration.
-    const turnstileOk = await verifyTurnstile(turnstileToken, env.TURNSTILE_KEY, ipAddress);
-    if (!turnstileOk) {
-        await recordFailure(env, subjects);
-        logAudit(env, ctx, null, 'REGISTER_FAILURE', { email, reason: 'Turnstile failed' }, ipAddress, userAgent);
-        return jsonResponse({ message: "CAPTCHA verification failed. Please try again." }, 403);
     }
 
     try {
@@ -248,14 +238,13 @@ export async function handleLogin(request: CustomRequest, env: Env, ctx: Executi
         email?: string;
         authSecret?: string;
         masterPassword?: string;
-        turnstileToken?: string;
     }>(request);
     if (!body) {
         return jsonResponse({ message: "Invalid JSON body." }, 400);
     }
 
     const email = normalizeEmail(body.email);
-    const { authSecret, masterPassword, turnstileToken } = body;
+    const { authSecret, masterPassword } = body;
 
     const presentedSecret = authSecret ?? masterPassword;
     if (!email || !isSaneSecret(presentedSecret, MAX_SECRET_LENGTH)) {
@@ -273,14 +262,6 @@ export async function handleLogin(request: CustomRequest, env: Env, ctx: Executi
         return rateLimitedResponse("Too many failed attempts. Try again later.", verdict);
     }
     const bumpFailures = () => recordFailure(env, subjects);
-
-    // Turnstile is required — fail closed so a missing or invalid token blocks login.
-    const turnstileOk = await verifyTurnstile(turnstileToken, env.TURNSTILE_KEY, ipAddress);
-    if (!turnstileOk) {
-        await bumpFailures();
-        logAudit(env, ctx, null, 'LOGIN_FAILURE', { email, reason: 'Turnstile failed' }, ipAddress, userAgent);
-        return jsonResponse({ message: "CAPTCHA verification failed. Please try again." }, 403);
-    }
 
     try {
         const user = await env.DB.prepare(
