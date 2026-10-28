@@ -90,20 +90,6 @@ export function initAuthPage({ onLogin, prefillEmail, notice } = {}) {
         .catch(() => {});
 }
 
-function readTurnstileToken(form) {
-    return form.querySelector('input[name="cf-turnstile-response"]')?.value || '';
-}
-
-function resetTurnstileWidgetIn(form) {
-    // The Turnstile script exposes `window.turnstile.reset` once loaded; reset
-    // so a failed submission can retry with a fresh challenge instead of
-    // reusing an already-consumed token.
-    const container = form.querySelector('.cf-turnstile');
-    if (container && window.turnstile?.reset) {
-        try { window.turnstile.reset(container); } catch {}
-    }
-}
-
 async function handleRegister(e) {
     e.preventDefault();
     const email = document.getElementById('register-email').value;
@@ -120,16 +106,10 @@ async function handleRegister(e) {
         return;
     }
 
-    const turnstileToken = readTurnstileToken(e.target);
-    if (!turnstileToken) {
-        snack.error('Please complete the CAPTCHA before creating your account.');
-        return;
-    }
-
     // Argon2id runs before the request, so this is the slow step, not the network.
     showLoading('Creating your account… deriving your encryption keys.');
     try {
-        await enrollNewAccount({ email, password: masterPassword, turnstileToken });
+        await enrollNewAccount({ email, password: masterPassword });
         snack.success('Account created. You can now sign in.');
         e.target.reset();
         document.querySelector('.auth-tabs button[data-tab="login"]')?.click();
@@ -137,7 +117,6 @@ async function handleRegister(e) {
     } catch (err) {
         console.error('Registration failed:', err);
         snack.error(err.message ?? 'Registration failed.');
-        resetTurnstileWidgetIn(e.target);
     } finally {
         hideLoading();
     }
@@ -148,15 +127,9 @@ async function handleLogin(e) {
     const email = document.getElementById('login-email').value;
     const masterPassword = document.getElementById('login-master-password').value;
 
-    const turnstileToken = readTurnstileToken(e.target);
-    if (!turnstileToken) {
-        snack.error('Please complete the CAPTCHA before signing in.');
-        return;
-    }
-
     showLoading('Signing in… unlocking your keys.');
     try {
-        const { response, kek } = await signIn({ email, password: masterPassword, turnstileToken });
+        const { response, kek } = await signIn({ email, password: masterPassword });
         // Two-step login: the server withholds the session and key material
         // until the second factor is verified. Keep the password and the KEK in
         // memory (closure) so the keys can be unwrapped after step 2.
@@ -170,7 +143,6 @@ async function handleLogin(e) {
     } catch (err) {
         console.error('Login failed:', err);
         snack.error(err.message ?? 'Could not sign in.');
-        resetTurnstileWidgetIn(e.target);
     } finally {
         hideLoading();
     }
