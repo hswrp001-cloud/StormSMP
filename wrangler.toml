@@ -1,30 +1,13 @@
-# ============================================================
-#  Heads up — forking this project?
-#  The IDs in this file (D1 database_id, KV namespace id, R2
-#  bucket_name, the passflares.com route) belong to the
-#  upstream maintainer's Cloudflare account. They are not
-#  secrets, but they will NOT work for you — `wrangler deploy`
-#  will fail with permission errors until you swap them out.
-#
-#  See `wrangler.toml.example` for a clean template with
-#  step-by-step instructions for setting up your own
-#  Cloudflare resources.
-# ============================================================
+# Storm SMP Passflares deployment configuration. Resources belong to this account.
 
-name = "passflares"
+name = "stormsmp-passflares"
 main = "src/worker.ts"
 compatibility_date = "2026-10-24"
 compatibility_flags = [ "nodejs_compat" ]
 tsconfig = "tsconfig.json"
 
 routes = [
-    # `pattern` is the exact host(+path) the Worker handles; `zone_name` is the
-    # Cloudflare zone that owns the DNS — the apex `passflares.com`. A proxied
-    # (orange-cloud) DNS record must exist for each host below, or the route
-    # receives no traffic. `www` serves the same Worker, which 301-redirects
-    # every www request to the apex (see redirectToCanonicalHost in worker.ts).
-    { pattern = "passflares.com/*", zone_name = "passflares.com" },
-    { pattern = "www.passflares.com/*", zone_name = "passflares.com" }
+    { pattern = "vault.thestormsmp.com/*", zone_name = "thestormsmp.com" }
 ]
 preview_urls = false
 
@@ -47,7 +30,7 @@ run_worker_first = true
 
 [[r2_buckets]]
 binding = "VAULTS"
-bucket_name = "secure-vaults-r2"
+bucket_name = "stormsmp-passflares-vaults"
 
 # Brute-force limiter. This replaced a KV namespace: the counter needs an atomic
 # read-modify-write and strong consistency, and KV offers neither, so the "5
@@ -67,8 +50,8 @@ new_sqlite_classes = ["RateLimiter"]
 
 [[d1_databases]]
 binding = "DB"
-database_name = "secure-password-db"
-database_id = "b7de341a-1977-44c3-9641-9f455e87a207"
+database_name = "stormsmp-passflares-db"
+database_id = "80428bc2-cb37-42bb-bb6f-23229bbf73ae"
 
 # ========================
 # SCHEDULED TASKS
